@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"time"
 
+	"encoding/json"
+
 	"github.com/hudl/zendesk-livestats/config"
 	"github.com/hudl/zendesk-livestats/logging"
 
@@ -49,6 +51,7 @@ func main() {
 		cfg.Password,
 		cfg.BaseUrl,
 	}
+	log.Info("cfg.Username " + cfg.Username)
 
 	var allTickets map[int]TicketDetails = make(map[int]TicketDetails)
 
@@ -58,9 +61,10 @@ func main() {
 		yesterday := now.Add(-24 * time.Hour)
 		monthToDate := now.Add(-30 * 24 * time.Hour)
 		query := fmt.Sprintf("created>%s created<%s", monthToDate.Format(dateFmt), tomorrow.Format(dateFmt))
+		log.Info("query " + query)
 
 		//Search for tickets between two dates
-		_, err := zdAuth.Search(query)
+		searchResponse, err := zdAuth.Search(query)
 
 		if err != nil {
 			log.Error("Error while running search: %+v", err)
@@ -69,21 +73,23 @@ func main() {
 
 		//Get ticket metrics for all tickets
 		searchResults := &zego.Search_Results{}
-		for _, ticket := range searchResults.Results {
+		json.Unmarshal([]byte(searchResponse.Raw), searchResults)
 
+		for _, ticket := range searchResults.Results {
+			log.Info("ticket " + string(ticket.Id))
 			_, ok := allTickets[ticket.Id]
 
 			//Check if current ticket has been already queried for. If yes, ensure it's got a valid value for replyTime
 			if (!ok) || (allTickets[ticket.Id].replyTime < 0) {
 
-				_, err := zdAuth.GetTicketMetrics(ticket.Id)
+				metricsResponse, err := zdAuth.GetTicketMetrics(ticket.Id)
+				ticketMetric := &zego.TicketMetric{}
+				json.Unmarshal([]byte(metricsResponse.Raw), ticketMetric)
 
 				if err != nil {
 					log.Error("Error while running search: %+v", err)
 					// TODO: Decide what we want to do here
 				}
-
-				ticketMetric := &zego.TicketMetric{}
 
 				str, _ := time.Parse(dateZendesk, ticketMetric.CreatedAt)
 
