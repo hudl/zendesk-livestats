@@ -10,6 +10,7 @@ import (
 	"github.com/hudl/zendesk-livestats/config"
 	"github.com/hudl/zendesk-livestats/logging"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/hudl/ZeGo/zego"
 	golog "github.com/op/go-logging"
 )
@@ -60,12 +61,13 @@ func main() {
 		tomorrow := now.Add(24 * time.Hour)
 		yesterday := now.Add(-24 * time.Hour)
 		monthToDate := now.Add(-30 * 24 * time.Hour)
-		query := fmt.Sprintf("created>%s created<%s", monthToDate.Format(dateFmt), tomorrow.Format(dateFmt))
+		query := fmt.Sprintf("created>%s", monthToDate.Format(dateFmt))
 		log.Info("query " + query)
 
 		//Search for tickets between two dates
 		searchResponse, err := zdAuth.Search(query)
-
+		log.Info("Here's the search response: ")
+		spew.Dump(searchResponse)
 		if err != nil {
 			log.Error("Error while running search: %+v", err)
 			// TODO: Decide what we want to do here
